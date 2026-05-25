@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>BACKYARD TALES</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+DW+Pica+SC&family=IM+Fell+English:ital@0;1&family=EB+Garamond:ital,wght@0,400..600;1,400..600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script type="importmap">
+{"imports":{
+  "three":"https://unpkg.com/three@0.162.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.162.0/examples/jsm/"
+}}
+</script>
+<style>
+/* ─── RESET + TYPOGRAPHY ──────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+:root{
+  --bg:        #14160e;   /* forest-floor black */
+  --bg2:       #1a1d12;
+  --panel:     #1f2218;   /* aged page */
+  --panel2:    #262a1d;
+  --panel3:    #2f331f;
+  --border:    #4a4530;   /* faded gilt */
+  --borderH:   #756a3f;
+  --ink:       #c8b890;   /* parchment text */
+  --inkH:      #e8d8a8;   /* bright parchment */
+  --dim:       #6f6644;
+  --moss:      #6a8a3a;
+  --moss2:     #4a6a28;
+  --rust:      #a83828;   /* mushroom red */
+  --gold:      #c8a850;
+  --bone:      #d8c8a0;
+
+  --fHead:'IM Fell DW Pica SC', serif;
+  --fSer: 'IM Fell English', 'EB Garamond', serif;
+  --fBody:'EB Garamond', Georgia, serif;
+}
+
+html,body{
+  width:100%;height:100%;background:var(--bg);color:var(--ink);
+  font-family:var(--fBody);font-size:16px;line-height:1.45;
+  overflow:hidden;
+}
+
+/* paper grain on everything */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(200,168,80,0.05), transparent 65%),
+    repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 3px),
+    repeating-linear-gradient(90deg,transparent,transparent 80px,rgba(200,184,144,.02) 80px,rgba(200,184,144,.02) 81px);
+  mix-blend-mode:multiply;
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.45) 100%);
+}
+
+/* ─── SCREENS ─────────────────────────────────────────────────── */
+.screen{position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden;z-index:5;}
+.screen[data-active]{display:flex}
+
+/* ─── SHARED 3D CANVAS ────────────────────────────────────────── */
+#three-canvas{
+  position:fixed;inset:0;width:100vw;height:100vh;
+  pointer-events:none;z-index:1;
+}
+
+/* ─── LOBBY ───────────────────────────────────────────────────── */
+#screen-lobby{
+  align-items:center;justify-content:center;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 110%, rgba(168,56,40,0.06), transparent),
+    radial-gradient(ellipse 80% 80% at 50% 20%, rgba(106,138,58,0.04), transparent),
+    var(--bg);
+}
+.lobby-frame{
+  width:min(440px, 92vw);padding:36px 32px 30px;
+  background:linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
+  border:1px solid var(--border);
+  position:relative;
+  box-shadow:0 0 40px rgba(0,0,0,.5), inset 0 0 80px rgba(0,0,0,.25);
+}
+/* ornamental corner marks */
+.lobby-frame::before,.lobby-frame::after{
+  content:'';position:absolute;width:18px;height:18px;
+  border:1px solid var(--gold);
+}
+.lobby-frame::before{top:6px;left:6px;border-right:none;border-bottom:none}
+.lobby-frame::after{bottom:6px;right:6px;border-left:none;border-top:none}
+.lobby-corner{position:absolute;width:18px;height:18px;border:1px solid var(--gold);}
+.lobby-corner.tr{top:6px;right:6px;border-left:none;border-bottom:none}
+.lobby-corner.bl{bottom:6px;left:6px;border-right:none;border-top:none}
+
+.lobby-title{
+  font-family:var(--fHead);font-size:2rem;letter-spacing:.06em;
+  color:var(--inkH);text-align:center;margin-bottom:.05em;
+  text-shadow:0 0 18px rgba(200,168,80,.18);
+}
+.lobby-sub{
+  font-family:var(--fSer);font-style:italic;font-size:.95rem;
+  color:var(--dim);text-align:center;margin-bottom:24px;
+  letter-spacing:.02em;
+}
+.lobby-ornament{
+  text-align:center;color:var(--gold);font-size:.9rem;
+  margin:8px 0 22px;letter-spacing:.4em;
+}
+.lobby-label{
+  font-family:var(--fHead);font-size:.6rem;letter-spacing:.32em;
+  color:var(--dim);display:block;margin-bottom:6px;text-align:center;
+}
+.lobby-input{
+  width:100%;padding:11px 12px;font-family:var(--fSer);font-size:1.15rem;
+  letter-spacing:.22em;text-align:center;text-transform:uppercase;
+  background:var(--bg);border:1px solid var(--border);color:var(--inkH);
+  outline:none;transition:border-color .14s;
+}
+.lobby-input:focus{border-color:var(--gold)}
+
+.lobby-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.btn{
+  font-family:var(--fHead);font-size:.66rem;letter-spacing:.22em;
+  padding:12px 14px;cursor:pointer;background:transparent;
+  border:1px solid var(--border);color:var(--ink);
+  transition:all .14s;text-transform:uppercase;
+}
+.btn:hover:not(:disabled){border-color:var(--gold);color:var(--inkH);background:rgba(200,168,80,.06)}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{border-color:var(--moss);color:var(--moss)}
+.btn.primary:hover:not(:disabled){border-color:var(--moss);color:var(--inkH);background:rgba(106,138,58,.12)}
+.btn.danger{border-color:var(--rust);color:var(--rust)}
+.btn.danger:hover:not(:disabled){background:rgba(168,56,40,.1);color:var(--inkH)}
+
+.lobby-status{
+  margin-top:18px;font-family:var(--fSer);font-style:italic;
+  font-size:.85rem;color:var(--dim);text-align:center;min-height:1.2em;
+}
+.lobby-status.ok{color:var(--moss)}
+.lobby-status.err{color:var(--rust)}
+
+/* ─── SELECT ──────────────────────────────────────────────────── */
+#screen-select{
+  background:var(--bg);
+  flex-direction:column;
+}
+.sel-top{
+  padding:14px 22px;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg, var(--panel2) 0%, var(--bg) 100%);
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  flex-shrink:0;
+}
+.sel-title{
+  font-family:var(--fHead);font-size:1.1rem;letter-spacing:.16em;color:var(--inkH);
+}
+.sel-subtitle{
+  font-family:var(--fSer);font-style:italic;font-size:.82rem;color:var(--dim);
+  margin-top:2px;
+}
+.sel-room{
+  font-family:var(--fHead);font-size:.55rem;letter-spacing:.3em;
+  padding:5px 10px;border:1px solid var(--border);color:var(--ink);
+}
+
+.sel-body{
+  flex:1;min-height:0;overflow-y:auto;padding:14px 22px 18px;
+}
+
+.class-row{
+  margin-bottom:18px;
+}
+.class-head{
+  display:flex;align-items:baseline;gap:14px;margin-bottom:6px;
+  padding-bottom:4px;border-bottom:1px dashed var(--border);
+}
+.class-name{
+  font-family:var(--fHead);font-size:.78rem;letter-spacing:.22em;
+  color:var(--inkH);
+}
+.class-flavor{
+  font-family:var(--fSer);font-style:italic;font-size:.78rem;color:var(--dim);
+}
+
+.variant-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+}
+.variant{
+  position:relative;background:var(--panel);
+  border:1px solid var(--border);cursor:pointer;
+  transition:all .15s;
+  aspect-ratio:1/1.15;
+  overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.variant:hover{border-color:var(--borderH);background:var(--panel2)}
+.variant.selected{
+  border-color:var(--gold);
+  background:var(--panel2);
+  box-shadow:0 0 0 1px var(--gold) inset, 0 0 18px rgba(200,168,80,.18);
+}
+.variant.selected::before,
+.variant.selected::after{
+  content:'';position:absolute;width:10px;height:10px;border:1px solid var(--gold);
+  z-index:3;
+}
+.variant.selected::before{top:3px;left:3px;border-right:none;border-bottom:none}
+.variant.selected::after{bottom:3px;right:3px;border-left:none;border-top:none}
+
+.variant-slot{
+  /* This is the transparent rectangle the shared 3D renderer paints into */
+  position:relative;flex:1 1 auto;min-height:0;
+  /* The actual 3D is rendered by the shared canvas behind this element */
+}
+.variant-foot{
+  position:relative;padding:4px 6px 5px;
+  font-family:var(--fSer);font-size:.7rem;color:var(--ink);
+  text-align:center;letter-spacing:.04em;
+  border-top:1px solid var(--border);
+  background:linear-gradient(180deg, transparent, rgba(0,0,0,.18));
+  flex-shrink:0;
+}
+.variant-species{
+  font-family:var(--fSer);font-style:italic;font-size:.65rem;
+  color:var(--dim);
+}
+
+.sel-bottom{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:12px 22px;border-top:1px solid var(--border);
+  background:linear-gradient(0deg, var(--panel2) 0%, var(--bg) 100%);
+  flex-shrink:0;
+}
+.sel-player{
+  display:flex;align-items:center;gap:10px;
+  font-family:var(--fSer);font-size:.95rem;
+}
+.sel-player-name{color:var(--inkH);font-family:var(--fHead);font-size:.7rem;letter-spacing:.2em}
+.sel-player-state{font-style:italic;color:var(--dim);font-size:.85rem}
+.sel-player-state.ready{color:var(--moss)}
+.sel-count{
+  display:inline-block;padding:2px 8px;margin-left:6px;
+  font-family:var(--fHead);font-size:.6rem;letter-spacing:.2em;
+  border:1px solid var(--border);color:var(--ink);
+}
+.sel-count.full{border-color:var(--moss);color:var(--moss)}
+
+/* ─── GAME ────────────────────────────────────────────────────── */
+#screen-game{
+  background:var(--bg);
+}
+#game-wrap{
+  position:absolute;inset:0;
+}
+.game-hud{
+  position:absolute;top:0;left:0;right:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 18px;background:linear-gradient(180deg,rgba(20,22,14,.86),transparent);
+  pointer-events:none;z-index:10;
+}
+.game-hud .left,.game-hud .right{
+  display:flex;align-items:center;gap:12px;pointer-events:auto;
+}
+.hud-tag{
+  font-family:var(--fHead);font-size:.55rem;letter-spacing:.22em;color:var(--ink);
+  padding:5px 9px;border:1px solid var(--border);background:rgba(20,22,14,.6);
+}
+.hud-tag.me{border-color:var(--moss);color:var(--moss)}
+.hud-tag.them{border-color:var(--rust);color:var(--rust)}
+
+/* ─── MISC ────────────────────────────────────────────────────── */
+.divider{
+  height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);
+  margin:14px 0;
+}
+
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border)}
+::-webkit-scrollbar-thumb:hover{background:var(--borderH)}
+
+@media (max-width:560px){
+  .variant-grid{gap:6px}
+  .class-name{font-size:.7rem}
+  .sel-body{padding:10px 12px 14px}
+  .sel-top{padding:10px 14px}
+  .sel-bottom{padding:10px 12px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SCREENS                                                          -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<!-- LOBBY -->
+<section class="screen" id="screen-lobby" data-active>
+  <div class="lobby-frame">
+    <div class="lobby-corner tr"></div>
+    <div class="lobby-corner bl"></div>
+
+    <h1 class="lobby-title">Backyard Tales</h1>
+    <p class="lobby-sub">a garden bestiary skirmish for two</p>
+    <div class="lobby-ornament">❦ &nbsp; ✦ &nbsp; ❦</div>
+
+    <div>
+      <span class="lobby-label">Stube / Room</span>
+      <input id="room-code" class="lobby-input" maxlength="10" placeholder="MOSS-1" autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="lobby-btns">
+      <button class="btn primary" id="btn-host">Eröffnen</button>
+      <button class="btn" id="btn-join">Beitreten</button>
+    </div>
+
+    <div class="lobby-status" id="lobby-status">Ein Code, vier bis zehn Zeichen.</div>
+  </div>
+</section>
+
+<!-- SELECT -->
+<section class="screen" id="screen-select">
+  <div class="sel-top">
+    <div>
+      <div class="sel-title">Wähle deine Gefährten</div>
+      <div class="sel-subtitle">eine Gestalt aus jedem Stand</div>
+    </div>
+    <div class="sel-room" id="sel-room-tag">—</div>
+  </div>
+
+  <div class="sel-body" id="sel-body">
+    <!-- populated by JS -->
+  </div>
+
+  <div class="sel-bottom">
+    <div class="sel-player">
+      <span class="sel-player-name" id="me-label">Du</span>
+      <span class="sel-count" id="me-count">0/6</span>
+      <span class="sel-player-state" id="me-state">noch nicht bereit</span>
+    </div>
+    <button class="btn primary" id="btn-ready" disabled>Bereit</button>
+    <div class="sel-player">
+      <span class="sel-player-state" id="them-state">wartet…</span>
+      <span class="sel-count" id="them-count">0/6</span>
+      <span class="sel-player-name" id="them-label">Gegner</span>
+    </div>
+  </div>
+</section>
+
+<!-- GAME -->
+<section class="screen" id="screen-game">
+  <div id="game-wrap"></div>
+  <div class="game-hud">
+    <div class="left">
+      <span class="hud-tag" id="hud-room">—</span>
+      <span class="hud-tag me" id="hud-me">DU</span>
+    </div>
+    <div class="right">
+      <span class="hud-tag them" id="hud-them">GEGNER</span>
+    </div>
+  </div>
+</section>
+
+<!-- Shared 3D canvas is injected by JS -->
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SCRIPT                                                           -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader }   from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader }  from 'three/addons/loaders/DRACOLoader.js';
+
+/* ──────────────────────────────────────────────────────────────
+   ASSET BASE
+   index.html lives in repo root → relative paths work on Pages.
+   ────────────────────────────────────────────────────────────── */
+const BASE = './';   // change to absolute URL if hosted elsewhere
+
+/* ──────────────────────────────────────────────────────────────
+   GAME DATA
+   ────────────────────────────────────────────────────────────── */
+
+// Class order (also order of UI rows + placement on board)
+const CLASSES = ['archer','bandit','knight','white_mage','black_mage','druid'];
+
+const CLASS_LABEL = {
+  archer:     'Schütze',
+  bandit:     'Strolch',
+  knight:     'Ritter',
+  white_mage: 'Weißmagier',
+  black_mage: 'Schwarzmagier',
+  druid:      'Druide',
+};
+const CLASS_FLAVOR = {
+  archer:     'aus dem Unterholz',
+  bandit:     'aus dem Stoppelfeld',
+  knight:     'aus dem alten Hof',
+  white_mage: 'aus dem Lichthain',
+  black_mage: 'aus dem Wurzelschacht',
+  druid:      'aus dem Moosgrund',
+};
+
+// Variant → species (one mesh per GLB, gradient determined by species)
+const UNIT_SPECIES = {
+  archer_1:      'frosch',
+  archer_2:      'falke',
+  archer_3:      'katze',
+
+  bandit_1:      'hase',
+  bandit_2:      'pilz',
+  bandit_3:      'waschbaer',
+
+  black_mage_1:  'katze',
+  black_mage_2:  'gnom',
+  black_mage_3:  'hase',
+
+  druid_1:       'frosch',
+  druid_2:       'frosch',
+  druid_3:       'echse',
+
+  knight_1:      'eule',
+  knight_2:      'zweigchen',
+  knight_3:      'katze',
+
+  white_mage_1:  'gnom',
+  white_mage_2:  'waschbaer',
+  white_mage_3:  'pilz',
+};
+
+const SPECIES_LABEL = {
+  frosch:'Frosch', falke:'Falke', katze:'Katze',
+  hase:'Hase', pilz:'Pilz', waschbaer:'Waschbär',
+  gnom:'Gnom', echse:'Echse', eule:'Eule', zweigchen:'Zweigchen'
+};
+
+/* Gradients – 6 horizontal bands (index 0 = TOP, index 5 = BOTTOM).
+   All six colors per species must be visible as distinct stripes. */
+const SPECIES_GRADIENT = {
+  katze:     ['#3a3a3a','#cc6622','#d8c8a0','#d8c8a0','#cc6622','#3a3a3a'],
+  frosch:    ['#3a7a2a','#1a4a1a','#c8d860','#d8c8a0','#c8d860','#d8c8a0'],
+  falke:     ['#7a4a2a','#a87a4a','#d8c8a0','#d8c8a0','#3a2a1a','#d8c08a'],
+  waschbaer: ['#3a3a3a','#7a7a7a','#d8c8a0','#7a7a7a','#7a7a7a','#3a3a3a'],
+  pilz:      ['#c83020','#c83020','#f0f0e8','#d8c8a0','#d8c8a0','#a87a4a'],
+  hase:      ['#7a4a2a','#3a2a1a','#d8c8a0','#d8c8a0','#d8c8a0','#3a2a1a'],
+  gnom:      ['#c83020','#c83020','#f0c8a0','#d8c8a0','#c83020','#c83020'],
+  echse:     ['#1a4a1a','#3a7a2a','#d8c8a0','#d8c8a0','#1a4a1a','#3a7a2a'],
+  eule:      ['#3a2a1a','#a87a4a','#d8c8a0','#d8c8a0','#3a2a1a','#d8c08a'],
+  zweigchen: ['#3a2a1a','#3a7a2a','#c8d860','#a87a4a','#d8c8a0','#3a2a1a'],
+};
+
+/* All 18 unit ids in a stable list for preloading */
+const ALL_UNITS = CLASSES.flatMap(c => [1,2,3].map(v => c+'_'+v));
+
+/* ──────────────────────────────────────────────────────────────
+   STATE
+   ────────────────────────────────────────────────────────────── */
+const ME = {
+  id:    Math.random().toString(36).slice(2,9),
+  room:  '',
+  isHost:false,
+  side:  null,  // 'host' | 'guest'
+};
+
+// Authoritative game state (host edits, guest reads)
+let G = makeFreshState();
+
+function makeFreshState(){
+  return {
+    state:'LOBBY',           // 'LOBBY' | 'SELECT' | 'PLAYING'
+    host:  { selections:{}, ready:false, joined:true  },
+    guest: { selections:{}, ready:false, joined:false },
+    seed:  null,
+    hostPlacement:  null,    // [unit_id × 6]
+    guestPlacement: null,
+  };
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SEEDED RNG (mulberry32) — deterministic across host & guest
+   ────────────────────────────────────────────────────────────── */
+function mulberry32(seed){
+  let t = seed >>> 0;
+  return function(){
+    t = (t + 0x6D2B79F5) >>> 0;
+    let r = t;
+    r = Math.imul(r ^ (r >>> 15), r | 1);
+    r ^= r + Math.imul(r ^ (r >>> 7), r | 61);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function shuffleSeeded(arr, rng){
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SHARED RENDERER & SCENES
+   ────────────────────────────────────────────────────────────── */
+let renderer = null;
+let raf = null;
+
+const previews = {};   // unitId → { scene, camera, model, rotateSpeed }
+let   gameScene = null, gameCamera = null, gameControls = null;
+
+function setupRenderer(){
+  renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:'high-performance' });
+  renderer.setClearColor(0x000000, 0);
+  renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+  renderer.setSize(innerWidth, innerHeight, false);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.autoClear = false;
+  renderer.domElement.id = 'three-canvas';
+  document.body.appendChild(renderer.domElement);
+
+  addEventListener('resize', () => {
+    renderer.setSize(innerWidth, innerHeight, false);
+  });
+}
+
+/* ──────────────────────────────────────────────────────────────
+   GLB LOADING — cached, Draco-enabled
+   ────────────────────────────────────────────────────────────── */
+const loader = new GLTFLoader();
+{
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://unpkg.com/three@0.162.0/examples/jsm/libs/draco/');
+  loader.setDRACOLoader(draco);
+}
+
+const modelCache = {};  // unitId → Promise<GLTF>
+
+function loadUnit(unitId){
+  if (modelCache[unitId]) return modelCache[unitId];
+  modelCache[unitId] = new Promise((resolve, reject) => {
+    loader.load(
+      BASE + unitId + '.glb',
+      gltf => resolve(gltf),
+      undefined,
+      err => {
+        console.warn('[load] failed', unitId, err);
+        reject(err);
+      }
+    );
+  });
+  return modelCache[unitId];
+}
+
+/* ──────────────────────────────────────────────────────────────
+   GRADIENT TINT — 6 discrete horizontal bands along local Y
+   index 0 = TOP, index 5 = BOTTOM
+   ────────────────────────────────────────────────────────────── */
+function applyGradient(mesh, stops){
+  if (!mesh.material || !mesh.geometry) return;
+  if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+  const bb = mesh.geometry.boundingBox;
+  const yMin = bb.min.y, yMax = bb.max.y;
+
+  const cols = stops.map(s => new THREE.Color(s));
+
+  const oldMat = mesh.material;
+  const newMat = oldMat.clone();
+  newMat.color = new THREE.Color(0xffffff);
+  newMat.map   = null;                 // bands must be pure (no diffuse texture)
+  if ('roughness' in newMat) newMat.roughness = 0.78;
+  if ('metalness' in newMat) newMat.metalness = 0.05;
+  if (newMat.emissiveMap) newMat.emissiveMap = null;
+  if ('emissive' in newMat) newMat.emissive = new THREE.Color(0x000000);
+
+  newMat.onBeforeCompile = (shader) => {
+    shader.uniforms.uYMin = { value:yMin };
+    shader.uniforms.uYMax = { value:yMax };
+    shader.uniforms.uS0   = { value:cols[0] };
+    shader.uniforms.uS1   = { value:cols[1] };
+    shader.uniforms.uS2   = { value:cols[2] };
+    shader.uniforms.uS3   = { value:cols[3] };
+    shader.uniforms.uS4   = { value:cols[4] };
+    shader.uniforms.uS5   = { value:cols[5] };
+
+    shader.vertexShader =
+      'varying float vGradY;\n' +
+      shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\n  vGradY = position.y;'
+      );
+
+    shader.fragmentShader =
+      'varying float vGradY;\n' +
+      'uniform float uYMin;\nuniform float uYMax;\n' +
+      'uniform vec3 uS0;\nuniform vec3 uS1;\nuniform vec3 uS2;\n' +
+      'uniform vec3 uS3;\nuniform vec3 uS4;\nuniform vec3 uS5;\n' +
+      shader.fragmentShader.replace(
+        '#include <color_fragment>',
+        `
+        #include <color_fragment>
+        float gradT = clamp((vGradY - uYMin) / max(uYMax - uYMin, 0.0001), 0.0, 1.0);
+        // index 0 = TOP, so invert
+        float ti = 1.0 - gradT;
+        // 6 discrete bands; tiny dither at boundaries to avoid harsh aliasing
+        float b = ti * 6.0;
+        int bi = int(floor(b));
+        if (bi > 5) bi = 5;
+        if (bi < 0) bi = 0;
+        vec3 band;
+        if      (bi == 0) band = uS0;
+        else if (bi == 1) band = uS1;
+        else if (bi == 2) band = uS2;
+        else if (bi == 3) band = uS3;
+        else if (bi == 4) band = uS4;
+        else              band = uS5;
+        diffuseColor.rgb = band;
+        `
+      );
+  };
+  newMat.needsUpdate = true;
+  mesh.material = newMat;
+}
+
+/* Clone a loaded GLTF scene, normalize scale/origin, apply gradient. */
+function buildUnitMesh(unitId, targetHeight = 1.6){
+  return loadUnit(unitId).then(gltf => {
+    const root = gltf.scene.clone(true);
+
+    // Normalize: scale so model height ≈ targetHeight, drop to y=0
+    const box = new THREE.Box3().setFromObject(root);
+    const size = new THREE.Vector3(); box.getSize(size);
+    const h = Math.max(size.y, 0.001);
+    const s = targetHeight / h;
+    root.scale.setScalar(s);
+
+    // After scaling: recompute box, center XZ, sit on ground
+    const box2 = new THREE.Box3().setFromObject(root);
+    const center = new THREE.Vector3(); box2.getCenter(center);
+    root.position.x -= center.x;
+    root.position.z -= center.z;
+    root.position.y -= box2.min.y;
+
+    // Apply gradient
+    const stops = SPECIES_GRADIENT[UNIT_SPECIES[unitId]];
+    root.traverse(c => {
+      if (c.isMesh){
+        c.castShadow = true; c.receiveShadow = true;
+        // unique material per mesh instance
+        c.material = c.material.clone();
+        if (stops) applyGradient(c, stops);
+      }
+    });
+
+    return root;
+  });
+}
+
+/* ──────────────────────────────────────────────────────────────
+   PREVIEW SCENES — one tiny scene per variant
+   ────────────────────────────────────────────────────────────── */
+function buildPreviewScene(unitId){
+  const scene = new THREE.Scene();
+  scene.background = null;
+
+  const amb = new THREE.AmbientLight(0xc8b890, 0.95);
+  scene.add(amb);
+  const dir = new THREE.DirectionalLight(0xfff0d0, 1.5);
+  dir.position.set(2, 4, 3);
+  scene.add(dir);
+  const rim = new THREE.DirectionalLight(0x88a060, 0.7);
+  rim.position.set(-3, 2, -2);
+  scene.add(rim);
+
+  const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 50);
+  camera.position.set(0, 1.4, 4.2);
+  camera.lookAt(0, 0.85, 0);
+
+  // a faint floor disc to anchor the figure
+  const discGeo = new THREE.CircleGeometry(1.0, 32);
+  const discMat = new THREE.MeshBasicMaterial({ color:0x2a2a1a, transparent:true, opacity:0.55 });
+  const disc = new THREE.Mesh(discGeo, discMat);
+  disc.rotation.x = -Math.PI/2;
+  disc.position.y = 0.005;
+  scene.add(disc);
+
+  const root = new THREE.Group();
+  scene.add(root);
+
+  const entry = {
+    scene, camera, root,
+    model:null,
+    rotateSpeed: 0.5,
+    selected:false,
+    loaded:false,
+  };
+  previews[unitId] = entry;
+
+  buildUnitMesh(unitId, 1.6).then(model => {
+    entry.model = model;
+    entry.loaded = true;
+    entry.root.add(model);
+  }).catch(()=>{ /* fail silent, preview just stays empty */ });
+
+  return entry;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   GAME SCENE — 8×8 tile board + 12 units
+   ────────────────────────────────────────────────────────────── */
+const TILE = 2;           // world units per tile
+const BOARD = 8;
+const GAME = { units:{} }; // unitObjectId → THREE.Group
+
+function setupGameScene(){
+  if (gameScene) return;
+  gameScene = new THREE.Scene();
+  gameScene.background = new THREE.Color(0x14160e);
+  gameScene.fog = new THREE.FogExp2(0x14160e, 0.018);
+
+  // lights
+  const amb = new THREE.AmbientLight(0xa89870, 0.6);
+  gameScene.add(amb);
+
+  const cx = (BOARD-1)*TILE / 2;
+
+  const sun = new THREE.DirectionalLight(0xfff0d0, 1.55);
+  sun.position.set(cx - 6, 22, cx + 8);
+  sun.target.position.set(cx, 0, cx);
+  gameScene.add(sun.target);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 1;
+  sun.shadow.camera.far  = 80;
+  sun.shadow.camera.left = -BOARD*TILE;
+  sun.shadow.camera.right=  BOARD*TILE;
+  sun.shadow.camera.top  =  BOARD*TILE;
+  sun.shadow.camera.bottom= -BOARD*TILE;
+  sun.shadow.bias = -0.0005;
+  gameScene.add(sun);
+
+  const moss = new THREE.PointLight(0x88a050, 0.4, 30);
+  moss.position.set(cx, 6, cx);
+  gameScene.add(moss);
+
+  // camera — positioned so MY units sit at the near edge
+  gameCamera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+  // host units at z=0 (low z) → host wants camera at z<0 looking +z
+  // guest units at z=14 → guest wants camera at z>BOARD*TILE looking -z
+  const isHost = (ME.side === 'host');
+  const camZ = isHost ? (-BOARD*TILE*0.55) : (BOARD*TILE * 1.55);
+  gameCamera.position.set(cx, BOARD*TILE * 0.95, camZ);
+  gameCamera.lookAt(cx, 0, cx);
+
+  gameControls = new OrbitControls(gameCamera, renderer.domElement);
+  gameControls.target.set(cx, 0, cx);
+  gameControls.enableDamping = true;
+  gameControls.dampingFactor = 0.08;
+  gameControls.maxPolarAngle = Math.PI * 0.46;
+  gameControls.minDistance = 8;
+  gameControls.maxDistance = 40;
+  gameControls.enablePan = false;
+  gameControls.update();
+}
+
+function buildBoard(seed){
+  // Remove any existing tiles
+  for (let i = gameScene.children.length - 1; i >= 0; i--){
+    const c = gameScene.children[i];
+    if (c.userData && c.userData.isTile) gameScene.remove(c);
+  }
+
+  const tex = new THREE.TextureLoader();
+  const t1 = tex.load(BASE + 'tile_1.png');
+  const t2 = tex.load(BASE + 'tile_2.png');
+  [t1,t2].forEach(t => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.magFilter = THREE.NearestFilter;
+    t.minFilter = THREE.LinearMipmapNearestFilter;
+    t.anisotropy = 4;
+  });
+
+  const rng = mulberry32(seed);
+  const tileGeo = new THREE.PlaneGeometry(TILE, TILE);
+
+  for (let x = 0; x < BOARD; x++){
+    for (let z = 0; z < BOARD; z++){
+      const which = rng() < 0.5 ? t1 : t2;
+      const mat = new THREE.MeshStandardMaterial({
+        map: which, roughness: 0.95, metalness: 0.0,
+      });
+      const tile = new THREE.Mesh(tileGeo, mat);
+      tile.rotation.x = -Math.PI/2;
+      tile.position.set(x * TILE, 0, z * TILE);
+      tile.receiveShadow = true;
+      tile.userData.isTile = true;
+      gameScene.add(tile);
+    }
+  }
+
+  // subtle edge frame
+  const frameGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(BOARD*TILE, 0.04, BOARD*TILE));
+  const frameMat = new THREE.LineBasicMaterial({ color:0x756a3f });
+  const frame = new THREE.LineSegments(frameGeo, frameMat);
+  frame.position.set((BOARD-1)*TILE/2, 0.01, (BOARD-1)*TILE/2);
+  frame.userData.isTile = true;
+  gameScene.add(frame);
+}
+
+/* Place 6 units centered along one edge row.
+   cols 1..6 used (cols 0 and 7 stay empty). */
+function placeUnits(side, placement){
+  if (!placement || placement.length !== 6) return;
+
+  const row = (side === 'host') ? 0 : BOARD - 1;
+  const facing = (side === 'host') ? 1 : -1;  // host faces +z (toward guest at z=7)
+
+  placement.forEach((unitId, idx) => {
+    const col = idx + 1;       // cols 1..6
+    const x = col * TILE;
+    const z = row * TILE;
+
+    const placeholder = new THREE.Group();
+    placeholder.position.set(x, 0.005, z);
+    placeholder.rotation.y = (facing > 0) ? 0 : Math.PI;
+    placeholder.userData.isUnit = true;
+    placeholder.userData.side = side;
+    placeholder.userData.unitId = unitId;
+    gameScene.add(placeholder);
+    GAME.units[side+'_'+col] = placeholder;
+
+    buildUnitMesh(unitId, 1.5).then(model => {
+      placeholder.add(model);
+    }).catch(()=>{});
+  });
+}
+
+/* ──────────────────────────────────────────────────────────────
+   RENDER LOOP
+   ────────────────────────────────────────────────────────────── */
+let lastT = 0;
+function loop(t){
+  raf = requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (t - lastT) / 1000 || 0);
+  lastT = t;
+
+  if (!renderer) return;
+
+  renderer.setScissorTest(false);
+  renderer.clear();
+  renderer.setScissorTest(true);
+
+  const screen = currentScreen();
+  if (screen === 'select')  renderPreviewViews(dt);
+  if (screen === 'game')    renderGameView(dt);
+}
+
+function currentScreen(){
+  if (document.getElementById('screen-game').hasAttribute('data-active')) return 'game';
+  if (document.getElementById('screen-select').hasAttribute('data-active')) return 'select';
+  return 'lobby';
+}
+
+function renderPreviewViews(dt){
+  const slots = document.querySelectorAll('.variant-slot');
+  slots.forEach(slot => {
+    const unitId = slot.dataset.unit;
+    const p = previews[unitId];
+    if (!p) return;
+    const rect = slot.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > innerHeight) return;
+    if (rect.right < 0  || rect.left > innerWidth) return;
+    const w = Math.floor(rect.width);
+    const h = Math.floor(rect.height);
+    if (w < 8 || h < 8) return;
+
+    const left   = Math.floor(rect.left);
+    const bottom = Math.floor(innerHeight - rect.bottom);
+
+    if (p.root && p.loaded){
+      p.root.rotation.y += dt * p.rotateSpeed;
+    }
+
+    renderer.setViewport(left, bottom, w, h);
+    renderer.setScissor (left, bottom, w, h);
+    p.camera.aspect = w / h;
+    p.camera.updateProjectionMatrix();
+    renderer.render(p.scene, p.camera);
+  });
+}
+
+function renderGameView(dt){
+  const wrap = document.getElementById('game-wrap');
+  const rect = wrap.getBoundingClientRect();
+  const w = Math.floor(rect.width);
+  const h = Math.floor(rect.height);
+  if (w < 8 || h < 8) return;
+  const left   = Math.floor(rect.left);
+  const bottom = Math.floor(innerHeight - rect.bottom);
+
+  if (gameControls) gameControls.update();
+
+  renderer.setViewport(left, bottom, w, h);
+  renderer.setScissor (left, bottom, w, h);
+  gameCamera.aspect = w / h;
+  gameCamera.updateProjectionMatrix();
+  renderer.render(gameScene, gameCamera);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   PEER JS
+   ────────────────────────────────────────────────────────────── */
+let peer = null;
+let conns = [];       // host:list of guests, guest:list of [host]
+
+function setStatus(msg, cls){
+  const e = document.getElementById('lobby-status');
+  e.textContent = msg;
+  e.className = 'lobby-status' + (cls ? ' '+cls : '');
+}
+
+function startHost(code){
+  ME.room = code; ME.isHost = true; ME.side = 'host';
+  G = makeFreshState();
+  setStatus('Eröffne Stube…');
+  peer = new Peer('bt_'+code, { debug:0 });
+  peer.on('open', () => {
+    setStatus('Stube "'+code+'" geöffnet — warte auf Beitritt.', 'ok');
+    peer.on('connection', c => hostAccept(c));
+  });
+  peer.on('error', e => {
+    if (e.type === 'unavailable-id') setStatus('Code bereits belegt.', 'err');
+    else setStatus('Fehler: '+e.type, 'err');
+    if (peer){ try{peer.destroy();}catch{}; peer = null; }
+  });
+}
+
+function startJoin(code){
+  ME.room = code; ME.isHost = false; ME.side = 'guest';
+  setStatus('Verbinde…');
+  peer = new Peer(undefined, { debug:0 });
+  peer.on('open', () => {
+    const c = peer.connect('bt_'+code, { reliable:true });
+    c.on('open', () => {
+      conns = [c];
+      setStatus('Stube "'+code+'" betreten.', 'ok');
+    });
+    c.on('data',  d => guestRecv(d));
+    c.on('close', () => {
+      setStatus('Verbindung verloren.', 'err');
+      conns = [];
+      goLobby();
+    });
+    c.on('error', e => setStatus('Fehler: '+e, 'err'));
+  });
+  peer.on('error', e => {
+    if (e.type === 'peer-unavailable') setStatus('Keine Stube mit dem Code "'+code+'".', 'err');
+    else setStatus('Fehler: '+e.type, 'err');
+    if (peer){ try{peer.destroy();}catch{}; peer = null; }
+  });
+}
+
+function hostAccept(c){
+  conns.push(c);
+  c.on('open', () => {
+    G.guest.joined = true;
+    if (G.state === 'LOBBY') G.state = 'SELECT';
+    broadcast();
+    if (currentScreen() === 'lobby') goSelect();
+  });
+  c.on('data',  d => hostRecv(d, c));
+  c.on('close', () => {
+    conns = conns.filter(x => x !== c);
+    G.guest.joined = false;
+    G.guest.ready  = false;
+    broadcast();
+  });
+}
+
+function broadcast(){
+  conns.forEach(c => { try { c.send({ t:'FULL', G }); } catch {} });
+  applyState();  // host also reacts to its own state changes
+}
+
+function hostRecv(msg /*, conn*/){
+  if (!msg || !msg.t) return;
+  if (msg.t === 'SELECT'){
+    G.guest.selections[msg.cls] = msg.variant;
+    broadcast();
+  }
+  if (msg.t === 'READY'){
+    G.guest.ready = !!msg.ready;
+    tryStartGame();
+    broadcast();
+  }
+}
+
+function guestRecv(msg){
+  if (!msg || !msg.t) return;
+  if (msg.t === 'FULL'){
+    G = msg.G;
+    applyState();
+  }
+}
+
+function sendToHost(msg){
+  conns.forEach(c => { try { c.send(msg); } catch {} });
+}
+
+function tryStartGame(){
+  const ok =
+    G.host.ready && G.guest.ready &&
+    Object.keys(G.host.selections).length === 6 &&
+    Object.keys(G.guest.selections).length === 6;
+  if (!ok) return;
+  if (G.state === 'PLAYING') return;
+
+  // Generate seed + placements once
+  G.seed = (Math.random() * 4294967295) >>> 0;
+  const rng1 = mulberry32(G.seed ^ 0xA1A1A1);
+  const rng2 = mulberry32(G.seed ^ 0xB2B2B2);
+
+  const hostUnits  = CLASSES.map(c => c + '_' + G.host.selections[c]);
+  const guestUnits = CLASSES.map(c => c + '_' + G.guest.selections[c]);
+
+  G.hostPlacement  = shuffleSeeded(hostUnits, rng1);
+  G.guestPlacement = shuffleSeeded(guestUnits, rng2);
+
+  G.state = 'PLAYING';
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SCREEN ROUTING
+   ────────────────────────────────────────────────────────────── */
+function showScreen(name){
+  ['lobby','select','game'].forEach(n => {
+    const el = document.getElementById('screen-'+n);
+    if (n === name) el.setAttribute('data-active','');
+    else            el.removeAttribute('data-active');
+  });
+  // canvas only receives pointer events during game (so OrbitControls works)
+  if (renderer){
+    renderer.domElement.style.pointerEvents = (name === 'game') ? 'auto' : 'none';
+  }
+}
+
+function goLobby(){ showScreen('lobby'); }
+function goSelect(){ showScreen('select'); buildSelectionRows(); applyState(); }
+function goGame(){ showScreen('game'); enterGame(); }
+
+/* Apply current G state to UI on whichever screen is active */
+function applyState(){
+  // SELECT screen reflects selections & ready states
+  if (G.state === 'PLAYING'){
+    if (currentScreen() !== 'game') goGame();
+    return;
+  }
+  if (G.state === 'SELECT' || G.state === 'LOBBY'){
+    if (currentScreen() === 'lobby' && G.guest.joined) goSelect();
+    if (currentScreen() === 'select') refreshSelectionUI();
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   SELECTION SCREEN — build rows, handle clicks, update UI
+   ────────────────────────────────────────────────────────────── */
+let selectionBuilt = false;
+
+function buildSelectionRows(){
+  if (selectionBuilt) return;
+  selectionBuilt = true;
+
+  document.getElementById('sel-room-tag').textContent = ME.room;
+
+  const body = document.getElementById('sel-body');
+  body.innerHTML = '';
+
+  CLASSES.forEach(cls => {
+    const row = document.createElement('div');
+    row.className = 'class-row';
+
+    row.innerHTML = `
+      <div class="class-head">
+        <span class="class-name">${CLASS_LABEL[cls].toUpperCase()}</span>
+        <span class="class-flavor">${CLASS_FLAVOR[cls]}</span>
+      </div>
+      <div class="variant-grid" data-class="${cls}"></div>
+    `;
+    const grid = row.querySelector('.variant-grid');
+
+    [1,2,3].forEach(v => {
+      const unitId = cls + '_' + v;
+      const species = UNIT_SPECIES[unitId];
+      const tile = document.createElement('div');
+      tile.className = 'variant';
+      tile.dataset.class = cls;
+      tile.dataset.variant = v;
+      tile.dataset.unit = unitId;
+      tile.innerHTML = `
+        <div class="variant-slot" data-unit="${unitId}"></div>
+        <div class="variant-foot">
+          <span class="variant-species">${SPECIES_LABEL[species] || species}</span>
+        </div>
+      `;
+      tile.addEventListener('click', () => onPickVariant(cls, v));
+      grid.appendChild(tile);
+
+      // Build preview scene + start loading model
+      buildPreviewScene(unitId);
+    });
+
+    body.appendChild(row);
+  });
+
+  document.getElementById('btn-ready').addEventListener('click', onToggleReady);
+}
+
+function onPickVariant(cls, variant){
+  const my = ME.isHost ? G.host : G.guest;
+  if (my.ready) return; // can't change after ready
+
+  if (ME.isHost){
+    G.host.selections[cls] = variant;
+    broadcast();
+  } else {
+    // optimistically update local copy and notify host
+    G.guest.selections[cls] = variant;
+    sendToHost({ t:'SELECT', cls, variant });
+    refreshSelectionUI();
+  }
+}
+
+function onToggleReady(){
+  const my = ME.isHost ? G.host : G.guest;
+  const sels = Object.keys(my.selections).length;
+  if (sels < 6) return;
+  const newReady = !my.ready;
+
+  if (ME.isHost){
+    G.host.ready = newReady;
+    tryStartGame();
+    broadcast();
+  } else {
+    G.guest.ready = newReady;
+    sendToHost({ t:'READY', ready:newReady });
+    refreshSelectionUI();
+  }
+}
+
+function refreshSelectionUI(){
+  const my   = ME.isHost ? G.host  : G.guest;
+  const them = ME.isHost ? G.guest : G.host;
+
+  // Highlight selected variants
+  document.querySelectorAll('.variant').forEach(tile => {
+    const cls = tile.dataset.class;
+    const v   = parseInt(tile.dataset.variant);
+    const isMine = my.selections[cls] === v;
+    tile.classList.toggle('selected', !!isMine);
+    // disable clicks while ready
+    tile.style.pointerEvents = my.ready ? 'none' : '';
+    tile.style.opacity = my.ready ? '.78' : '';
+    // also de-rotate selected variants a bit faster for visual flair
+    const p = previews[tile.dataset.unit];
+    if (p) p.rotateSpeed = isMine ? 1.1 : 0.5;
+  });
+
+  const myCount   = Object.keys(my.selections).length;
+  const themCount = Object.keys(them.selections).length;
+  const meCount = document.getElementById('me-count');
+  const meState = document.getElementById('me-state');
+  const themCountEl = document.getElementById('them-count');
+  const themState   = document.getElementById('them-state');
+  const btnReady    = document.getElementById('btn-ready');
+
+  meCount.textContent = myCount + '/6';
+  meCount.classList.toggle('full', myCount === 6);
+  themCountEl.textContent = themCount + '/6';
+  themCountEl.classList.toggle('full', themCount === 6);
+
+  meState.textContent = my.ready ? 'bereit'  : (myCount === 6 ? 'wähle „Bereit“' : 'noch nicht bereit');
+  meState.classList.toggle('ready', my.ready);
+
+  const opponentJoined = ME.isHost ? G.guest.joined : true;
+  themState.textContent = !opponentJoined ? 'wartet auf Beitritt…'
+                         : them.ready    ? 'bereit'
+                         : (themCount === 6 ? 'überlegt…' : 'wählt…');
+  themState.classList.toggle('ready', them.ready && opponentJoined);
+
+  btnReady.disabled = myCount < 6;
+  btnReady.textContent = my.ready ? 'Doch nicht' : 'Bereit';
+  btnReady.classList.toggle('primary', !my.ready);
+  btnReady.classList.toggle('danger', my.ready);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   GAME ENTRY
+   ────────────────────────────────────────────────────────────── */
+let gameEntered = false;
+function enterGame(){
+  if (gameEntered) return;
+  gameEntered = true;
+
+  document.getElementById('hud-room').textContent = ME.room;
+  document.getElementById('hud-me').textContent   = ME.side === 'host' ? 'DU · OBEN' : 'DU · UNTEN';
+  document.getElementById('hud-them').textContent = ME.side === 'host' ? 'GEGNER · UNTEN' : 'GEGNER · OBEN';
+
+  setupGameScene();
+  buildBoard(G.seed);
+  placeUnits('host',  G.hostPlacement);
+  placeUnits('guest', G.guestPlacement);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   LOBBY EVENTS
+   ────────────────────────────────────────────────────────────── */
+function init(){
+  setupRenderer();
+  requestAnimationFrame(loop);
+
+  const code = document.getElementById('room-code');
+  // Auto-uppercase + strip spaces
+  code.addEventListener('input', () => {
+    code.value = code.value.toUpperCase().replace(/\s+/g,'');
+  });
+  // Suggest a random code
+  code.value = 'MOSS-' + Math.floor(Math.random()*900 + 100);
+
+  document.getElementById('btn-host').addEventListener('click', () => {
+    const c = code.value.trim();
+    if (c.length < 4){ setStatus('Code muss mindestens 4 Zeichen haben.','err'); return; }
+    document.getElementById('btn-host').disabled = true;
+    document.getElementById('btn-join').disabled = true;
+    startHost(c);
+  });
+  document.getElementById('btn-join').addEventListener('click', () => {
+    const c = code.value.trim();
+    if (c.length < 4){ setStatus('Code muss mindestens 4 Zeichen haben.','err'); return; }
+    document.getElementById('btn-host').disabled = true;
+    document.getElementById('btn-join').disabled = true;
+    startJoin(c);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
